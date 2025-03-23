@@ -1,0 +1,9 @@
+{
+	"name": "example settings",
+	"presetNumber": 111,
+	"knobs": [
+		{ "knob": 1, "cc": 22 },
+		{ "knob": 2, "cc": 23 },
+		{ "knob": 3, "nrpn": 120 }
+	]
+}
