@@ -39,9 +39,6 @@ export class SysexBuilder {
 		return this.bytes = []
 	}
 
-	//setPresetNumber(presetNumber: number): number {
-	//	return this.presetNumber = presetNumber
-	//}
 	getConfig(): SysexBuilderConfig {
 		return this.config
 	}
@@ -76,23 +73,7 @@ export class SysexBuilder {
 		this.bytes.push(0xF7)
 
 		for (const knobSettings of this.config.knobs) {
-			console.log("KNOB SETTINGS", knobSettings)
 			this.setKnob(knobSettings)
-
-			//console.log("KNOB", knob)
-			//const ndx = knob.number - 1
-
-			//channelBytes[ndx] = knob.channel || 0x00
-
-			//if (knob.nrpn) {
-			//	eventTypeBytes[ndx] = EventTypes.NRPN0_MSB
-			//	eventArgumentBytes[ndx] = knob.nrpn
-			//} else if (knob.cc) {
-			//	eventTypeBytes[ndx] = EventTypes.CONTROLLER
-			//	eventArgumentBytes[ndx] = knob.cc
-			//} else {
-			//	throw new Error('Invalid knob configuration')
-			//}
 		}
 	}
 

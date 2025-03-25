@@ -1,6 +1,5 @@
 import { SysexBuilder, KnobConfig } from "../src/SysexBuilder"
 import { describe, expect, it } from "@jest/globals"
-import path from "path"
 
 describe("SysexBuilder", () => {
 	describe("instantiation", () => {
