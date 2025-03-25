@@ -1,9 +1,12 @@
 {
 	"name": "example settings",
-	"presetNumber": 111,
+	"preset": 111,
 	"knobs": [
-		{ "knob": 1, "cc": 22 },
-		{ "knob": 2, "cc": 23 },
-		{ "knob": 3, "nrpn": 120 }
+		{ "number": 1, "channel": 1, "cc": 22 },
+		{ "number": 2, "channel": 2, "cc": 33 },
+		{ "number": 3, "channel": 3, "nrpn": 44 },
+		{ "number": 4, "channel": 10, "nrpn": 111 },
+		{ "number": 5, "channel": 11, "nrpn": 123 },
+		{ "number": 6, "channel": 12, "nrpn": 88 }
 	]
 }

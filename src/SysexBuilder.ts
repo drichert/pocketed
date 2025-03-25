@@ -1,23 +1,25 @@
 import EventTypes from './EventTypes'
 
-type SysexBuilderConfig = {
-	presetNumber: number
-	knobs: [
-		{
-			number: number,
-			channel?: number,
-			cc?: number
-			nrpn?: number
-		}
-	]
+export type KnobConfig = {
+	number: number,
+	channel: number,
+	cc?: number
+	nrpn?: number
 }
 
-class SysexBuilder {
+type SysexBuilderConfig = {
+	preset: number
+	knobs: KnobConfig[]
+}
+
+export class SysexBuilder {
+	configPath: string = `${__dirname}/../knob-configs`
+
 	private bytes: number[] = []
 
 	private config: SysexBuilderConfig = {
-		presetNumber: 0,
-		knobs: [{ number: 1 }]
+		preset: 0,
+		knobs: []
 	}
 
 	static async load(configName: string) {
@@ -26,6 +28,11 @@ class SysexBuilder {
 		await builder.loadConfig(configName)
 
 		return builder
+	}
+
+	constructor() {
+		this.initSingleDump()
+		this.singleStore()
 	}
 
 	clearBytes(): number[] {
@@ -39,14 +46,13 @@ class SysexBuilder {
 		return this.config
 	}
 
-	//getBytes(): number[] {
 	getBytes(): Uint8Array {
 		return Uint8Array.from(this.bytes)
 	}
 
-	singleDump() {
+	initSingleDump() {
 		this.bytes = this.bytes.concat([
-			0xF0, 0x00, 0x20, 0x20, 0x14, 0x00, this.config.presetNumber, 0x00, 0xF7
+			0xF0, 0x00, 0x20, 0x20, 0x14, 0x00, 0x20, this.config.preset, 0x00
 		])
 
 		const zeros = (n: number = 16): Uint8Array => {
@@ -61,7 +67,16 @@ class SysexBuilder {
 
 		const eventArgumentBytes = Uint8Array.from(zeros())
 
+		this.bytes = this.bytes.concat(
+			Array.from(channelBytes),
+			Array.from(eventTypeBytes),
+			Array.from(eventArgumentBytes)
+		)
+
+		this.bytes.push(0xF7)
+
 		for (const knobSettings of this.config.knobs) {
+			console.log("KNOB SETTINGS", knobSettings)
 			this.setKnob(knobSettings)
 
 			//console.log("KNOB", knob)
@@ -79,54 +94,79 @@ class SysexBuilder {
 			//	throw new Error('Invalid knob configuration')
 			//}
 		}
-
-		this.bytes = this.bytes.concat(
-			Array.from(channelBytes),
-			Array.from(eventTypeBytes),
-			Array.from(eventArgumentBytes)
-		)
-
-		this.bytes.push(0xF7)
 	}
 
 	singleStore() {
 		this.bytes = this.bytes.concat([
-			0xF0, 0x00, 0x20, 0x20, 0x14, 0x00, this.config.presetNumber, 0x00, 0xF7
+			0xF0, 0x00, 0x20, 0x20, 0x14, 0x00, this.config.preset, 0x00, 0xF7
 		])
 	}
 
 	async loadConfig(configName: string): Promise<SysexBuilderConfig> {
-		return this.config = await import(`../knob-configs/${configName}.json`)
+		this.config = await import(`${this.configPath}/${configName}.json`)
+
+		for (const knobSettings of this.config.knobs) {
+			this.setKnob(knobSettings)
+		}
+
+		return this.config
 	}
 
-	setKnob(
-		knobNumber: number,
-		channel: number = 0,
-		cc: number | null = null,
-		nrpn: number | null = null
-	) {
-		const ndx = knobNumber - 1
-		const channelNdx = ndx + 9
-		const eventTypeNdx = ndx + 25
-		const eventArgumentNdx = ndx + 41
+	setKnob(knobConfig: KnobConfig) {
+		this.validateKnobNumber(knobConfig.number)
 
-		if (!(cc || nrpn)) {
+		const ndx = knobConfig.number - 1
+		const channelNdx = ndx + 9
+		const eventTypeNdx = ndx + 26
+		const eventArgumentNdx = ndx + 42
+
+		if (!(knobConfig.cc || knobConfig.nrpn)) {
 			throw new Error('Invalid knob configuration')
 		}
 
-		this.bytes[channelNdx] = channel
-		this.bytes[eventTypeNdx] = cc ? EventTypes.CONTROLLER : EventTypes.NRPN0_MSB 
-		this.bytes[eventArgumentNdx] = cc || nrpn || 0 // 0?
+		this.bytes[channelNdx] = knobConfig.channel
+		this.bytes[eventTypeNdx] = knobConfig.cc ?
+			EventTypes.CONTROLLER : EventTypes.NRPN0_MSB 
+		this.bytes[eventArgumentNdx] = knobConfig.cc || knobConfig.nrpn || 0 // 0?
 	}
 
-	render(): Uint8Array {
-		this.clearBytes()
+	getKnob(knobNumber: number): KnobConfig {
+		this.validateKnobNumber(knobNumber)
 
-		this.singleDump()
-		this.singleStore()
+		console.log("WTF", this.getBytes())
+		// TODO add constants for offsets
+		const ndx = knobNumber - 1
+		const channelNdx = ndx + 9
+		const eventTypeNdx = ndx + 26
+		const eventArgumentNdx = ndx + 42
 
-		return this.getBytes()
+		const isCC = this.bytes[eventTypeNdx] === EventTypes.CONTROLLER
+		const isNRPN = this.bytes[eventTypeNdx] === EventTypes.NRPN0_MSB
+
+		return {
+			number: knobNumber,
+			channel: this.bytes[channelNdx] || 0,
+			...(isCC ? { cc: this.bytes[eventArgumentNdx] } : {}),
+			...(isNRPN ? { nrpn: this.bytes[eventArgumentNdx] } : {})
+		}
+	}
+
+	//render(): Uint8Array {
+	//	this.clearBytes()
+
+	//	this.singleDump()
+	//	this.singleStore()
+
+	//	return this.getBytes()
+	//}
+
+	dump(): Buffer {
+		return Buffer.from(this.getBytes())
+	}
+
+	private validateKnobNumber(knobNumber: number) {
+		if (knobNumber < 1 || knobNumber > 16) {
+			throw new Error('Invalid knob number')
+		}
 	}
 }
-
-export default SysexBuilder
