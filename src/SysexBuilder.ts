@@ -114,7 +114,6 @@ export class SysexBuilder {
 	getKnob(knobNumber: number): KnobConfig {
 		this.validateKnobNumber(knobNumber)
 
-		console.log("WTF", this.getBytes())
 		// TODO add constants for offsets
 		const ndx = knobNumber - 1
 		const channelNdx = ndx + 9
